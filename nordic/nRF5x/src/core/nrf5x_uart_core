@@ -1,0 +1,36 @@
+#include <unistd.h>
+#include "py/mpconfig.h"
+#include "nrf.h"
+
+#define PIN_TXD        (6)
+#define PIN_RXD        (8)
+
+/* Init code
+NRF_UARTE0->CONFIG = (UART_CONFIG_HWFC_Disabled   << UART_CONFIG_HWFC_Pos) |
+                     (UART_CONFIG_PARITY_Included << UART_CONFIG_PARITY_Pos);
+
+NRF_UARTE0->PSEL.TXD = PIN_TXD;
+NRF_UARTE0->PSEL.RXD = PIN_RXD;
+NRF_UARTE0->ENABLE = UARTE_ENABLE_ENABLE_Enabled << UARTE_ENABLE_ENABLE_Pos;
+
+*/
+int mp_hal_stdin_rx_chr(void) {
+  unsigned char c = 0;
+  NRF_UARTE0->RXD.MAXCNT =sizeof(c);
+  NRF_UARTE0->RXD.PTR = (uint32_t)&c;
+  NRF_UARTE0->TASKS_STARTRX = 1;
+  while (NRF_UARTE0->EVENTS_ENDRX == 0){};
+  NRF_UARTE0->TASKS_STOPRX = 1;
+  while (NRF_UARTE0->EVENTS_RXSTOPPED == 0){};
+  return c;
+}
+
+void mp_hal_stdout_tx_strn(const char *str, mp_uint_t len) {
+/* TODO: This might overflow please check and use while(len--) */
+  NRF_UARTE0->TXD.MAXCNT = len;
+  NRF_UARTE0->TXD.PTR = (uint32_t)&str[0];
+  NRF_UARTE0->TASKS_STARTTX = 1;
+  while (NRF_UARTE0->EVENTS_ENDTX == 0){};
+  NRF_UARTE0->TASKS_STOPTX = 1;
+  while (NRF_UARTE0->EVENTS_TXSTOPPED == 0){};
+}
